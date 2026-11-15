@@ -1,0 +1,135 @@
+# .insitu.yml - minimal TakT-ready setup
+
+defaults:
+  die-on-error: true
+  timeout: 5m
+  verbose: false
+
+inventory:
+  - id: gh-auth
+    name: GitHub Authentication
+    command: gh auth status
+
+  - id: install-gh-insitu
+    name: Install gh-insitu
+    command: gh extension install devx-cafe/gh-insitu
+
+  - id: install-gh-tt
+    name: Install gh-tt
+    command: gh extension install devx-cafe/gh-tt
+
+  - id: install-takt-shortcuts
+    name: Install TakT shortcuts
+    command: |
+      gh alias set workon '!gh tt workon "$@"' --clobber
+      gh alias set wrapup '!gh tt wrapup "$@"' --clobber
+      gh alias set deliver '!gh tt deliver "$@"' --clobber
+      gh alias set semver '!gh tt semver "$@"' --clobber
+
+  - id: safe-repo
+    name: Mark repository as safe for git operations
+    command: git config --global --add safe.directory "$(pwd)"
+
+  - id: repo-gitconfig
+    name: Use repo-root .gitconfig for consistent git settings
+    command: |
+      git config --local --get include.path | grep -e ../.gitconfig >/dev/null 2>&1 || \
+      git config --local --add include.path ../.gitconfig
+
+  - id: cspell
+    name: Run cspell
+    command: cspell
+
+  - id: markdownlint
+    name: Run markdownlint
+    command: markdownlint-cli2
+
+  - id: prettier
+    name: Run prettier
+    command: prettier --check .
+
+  - id: "install-npm-tools"
+    name: "Install npm tools"
+    command: |
+      npm install -g prettier@3.10.1 markdownlint-cli2@0.24.1 cspell@10.5.1 @cspell/dict-da-dk@4.1.3 @mindovermachine-dev/remote-astro-theme@0.1.0
+      command -v cspell
+      command -v markdownlint-cli2
+      command -v prettier
+      command -v remote-astro-theme
+
+  - id: "install-apt-tools"
+    name: "Install apt tools"
+    command: |
+      sudo apt-get update
+      sudo apt-get install -y jq=1.7.1-3ubuntu0.24.04.2 yq=3.1.0-3
+      tofu --version
+      helm version
+      kubectl version --client
+
+  - id: install-flux
+    name: Install flux
+    command: |
+      curl -fsSL https://fluxcd.io/install.sh | sudo bash
+      flux --version
+
+  - id: verify-npm-tools
+    name: Verify linting tools are available
+    command: |
+      command -v cspell
+      command -v markdownlint-cli2
+      command -v prettier
+      command -v remote-astro-theme
+
+  - id: apt-update
+    name: Update Apt
+    command: sudo apt-get update
+
+  - id: "fix-markdown"
+    name: "Fix all fixable markdown issues"
+    command: |
+      markdownlint-cli2 --fix
+
+  - id: "fix-prettier"
+    name: "Fix all fixable prettier issues"
+    command: |
+      prettier --write .
+
+waves:
+  - id: post-create
+    name: Dev Container Post Create
+    parallel: true
+    checks:
+      - gh-auth
+      - install-npm-tools
+      - install-gh-insitu
+      - install-gh-tt
+      - install-takt-shortcuts
+      - safe-repo
+      - repo-gitconfig
+      - install-apt-tools
+
+  - id: "prep-runner"
+    name: "Run to prepare GitHub runner"
+    parallel: true
+    checks:
+      - gh-auth
+      - install-gh-insitu
+      - repo-gitconfig
+      - install-npm-tools
+      - install-apt-tools
+
+  - id: trunk-worthy
+    name: Minimum quality checks before commit
+    parallel: true
+    checks:
+      - cspell
+      - markdownlint
+      - prettier
+
+  - id: "fix-all"
+    name: "Fix anything that can be fixed automatically"
+    parallel: true
+    checks:
+      - "fix-markdown"
+      - "fix-prettier"
+      - "cspell"
