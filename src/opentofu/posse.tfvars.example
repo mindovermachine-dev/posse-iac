@@ -1,0 +1,5 @@
+primary_ipv4     = ""
+ssh_public_key   = ""
+ssh_allowed_cidr = ""
+location         = "hel1"
+server_type      = "cpx12"

@@ -15,8 +15,8 @@ security, and recovery have been designed and tested.
 Gather the following:
 
 - A Hetzner Cloud API token with read and write access to the project containing
-  the reserved Primary IP. Store it in the ignored `tmp/keys.yml`; do not commit
-  it or paste it into chat.
+  the reserved Primary IP. Set `HCLOUD_TOKEN` on the host and make it available
+  in the dev container; do not commit it or paste it into chat.
 - The reserved Primary IPv4 address, its Hetzner location, and confirmation
   that it is unassigned and available for this server. A Primary IP can be
   attached to only one server at a time.
@@ -37,64 +37,46 @@ and state independently before adopting or changing them.
 
 ## Initialize and plan
 
-From the repository root, run:
+If you don't already have a configuration file, copy
+`src/opentofu/posse.tfvars.example` to `src/opentofu/posse.tfvars` and fill in
+the Primary IPv4, SSH public key, and allowed SSH CIDR. Adjust the location and
+server type as needed. The configuration file is ignored by Git; do not put
+tokens or private keys in it. The allowed CIDR must match the public address of
+the machine you will use to connect.
+
+From the tofu root `src/opentofu` repository root, prepare the working directory and initialize OpenTofu:
 
 ```sh
-bash src/opentofu/plan.sh
+tofu init
 ```
 
-The script reads `hetzner.token` and `hetzner.ip.primary` from `tmp/keys.yml`,
-selects the configured SSH agent key, and defaults to `hel1` and `cpx12`. It
-initializes OpenTofu and saves the plan at
-`tmp/opentofu/posse.tfplan`; running it again replaces that saved plan.
+The commands below assume you are still in `src/opentofu`. Use another
+`-var-file` path to select a different configuration. Different variable files
+still use the same configured state; they do not create separate deployments.
 
-By default, the SSH firewall allows the public IPv4 address observed from the
-dev container. Verify that this is also the address of the machine you will use
-to connect. To override it, or change the location or server type, set the
-relevant variables before running the script:
+Preview changes:
 
 ```sh
-TF_VAR_ssh_allowed_cidr="YOUR_SSH_CLIENT_IPV4/32" bash src/opentofu/plan.sh
+tofu plan -var-file=posse.tfvars
 ```
 
-`TF_VAR_location` and `TF_VAR_server_type` are also optional overrides. The
-script does not modify the environment of the shell that invokes it.
-
-Review the plan, resource names, IP assignment, firewall, and costs before
-approving an apply. To apply the saved plan explicitly, run:
+To apply, run:
 
 ```sh
-bash src/opentofu/apply.sh
+tofu apply -var-file=posse.tfvars
 ```
 
-The script displays the saved plan and requires you to type `apply` before
-creating or changing billable resources. The plan file can contain sensitive
-data; keep it protected and out of Git.
+OpenTofu generates a fresh plan and asks for confirmation. Review the resource
+names, IP assignment, firewall, and costs before approving changes to billable
+resources.
 
 To review and destroy the resources managed in this state, run:
 
 ```sh
-bash src/opentofu/destroy.sh
+tofu destroy -var-file=posse.tfvars
 ```
 
 OpenTofu displays the destruction plan and asks for confirmation. Destroying
 removes the server, firewall, and registered key, including any data on the
 server disk; the separately managed Primary IP remains. Keep state available
 for future updates and cleanup.
-
-## Shared environment
-
-Other Bash scripts can source the shared setup and load only the inputs they
-need:
-
-```sh
-source src/opentofu/env.sh
-posse_load_environment
-posse_load_plan_inputs
-```
-
-`posse_load_environment` exports the Hetzner token and OpenTofu data directory;
-`posse_load_plan_inputs` additionally loads the Primary IP, SSH key, SSH CIDR,
-location, and server type. Apply only needs the first function because the
-saved plan already contains its inputs. When sourcing in an interactive shell,
-unset `HCLOUD_TOKEN` after use.
