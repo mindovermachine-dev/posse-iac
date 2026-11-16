@@ -57,6 +57,24 @@ inventory:
       command -v prettier
       command -v remote-astro-theme
 
+  - id: runner-install-npm-tools
+    name: Install runner npm tools
+    command: |
+      set -eu
+      if npm list -g --depth=0 --json | jq -e '
+        .dependencies.prettier.version == "3.10.1" and
+        .dependencies["markdownlint-cli2"].version == "0.24.1" and
+        .dependencies.cspell.version == "10.5.1" and
+        .dependencies["@cspell/dict-da-dk"].version == "4.1.3"
+      ' >/dev/null; then
+        printf 'Runner npm tools already installed\n'
+      else
+        npm install -g prettier@3.10.1 markdownlint-cli2@0.24.1 cspell@10.5.1 @cspell/dict-da-dk@4.1.3
+      fi
+      command -v cspell
+      command -v markdownlint-cli2
+      command -v prettier
+
   - id: "install-apt-tools"
     name: "Install apt tools"
     command: |
@@ -65,6 +83,106 @@ inventory:
       tofu --version
       helm version
       kubectl version --client
+
+  - id: install-helm
+    name: Install Helm
+    command: |
+      set -eu
+      if command -v helm >/dev/null 2>&1 && helm version --short | grep -Eq '^v4[.]3[.]1([+].*)?$'; then
+        printf 'Helm v4.3.1 already installed\n'
+        exit 0
+      fi
+      case "$(uname -m)" in
+        x86_64) arch=amd64 ;;
+        aarch64) arch=arm64 ;;
+        *) printf 'Unsupported architecture: %s\n' "$(uname -m)" >&2; exit 1 ;;
+      esac
+      work_dir=$(mktemp -d)
+      trap 'rm -rf "$work_dir"' EXIT
+      cd "$work_dir"
+      helm_archive="helm-v4.3.1-linux-${arch}.tar.gz"
+      curl -fsSLo "$helm_archive" "https://get.helm.sh/$helm_archive"
+      curl -fsSL "https://get.helm.sh/${helm_archive}.sha256sum" | sha256sum -c -
+      tar -xzf "$helm_archive"
+      sudo install -m 755 "linux-${arch}/helm" /usr/local/bin/helm
+      helm version
+
+  - id: install-kubectl
+    name: Install kubectl
+    command: |
+      set -eu
+      if command -v kubectl >/dev/null 2>&1 && kubectl version --client | grep -Fxq 'Client Version: v1.37.2'; then
+        printf 'kubectl v1.37.2 already installed\n'
+        exit 0
+      fi
+      case "$(uname -m)" in
+        x86_64) arch=amd64 ;;
+        aarch64) arch=arm64 ;;
+        *) printf 'Unsupported architecture: %s\n' "$(uname -m)" >&2; exit 1 ;;
+      esac
+      work_dir=$(mktemp -d)
+      trap 'rm -rf "$work_dir"' EXIT
+      cd "$work_dir"
+      kubectl_url="https://dl.k8s.io/release/v1.37.2/bin/linux/${arch}/kubectl"
+      curl -fsSLo kubectl "$kubectl_url"
+      printf '%s  kubectl\n' "$(curl -fsSL "${kubectl_url}.sha256")" | sha256sum -c -
+      sudo install -m 755 kubectl /usr/local/bin/kubectl
+      kubectl version --client
+
+  - id: install-tofu
+    name: Install OpenTofu
+    command: |
+      set -eu
+      if command -v tofu >/dev/null 2>&1 && tofu version | grep -Fxq 'OpenTofu v1.13.9'; then
+        printf 'OpenTofu v1.13.9 already installed\n'
+        exit 0
+      fi
+      case "$(uname -m)" in
+        x86_64) arch=amd64 ;;
+        aarch64) arch=arm64 ;;
+        *) printf 'Unsupported architecture: %s\n' "$(uname -m)" >&2; exit 1 ;;
+      esac
+      work_dir=$(mktemp -d)
+      trap 'rm -rf "$work_dir"' EXIT
+      cd "$work_dir"
+      tofu_archive="tofu_1.13.9_linux_${arch}.zip"
+      tofu_url="https://github.com/opentofu/opentofu/releases/download/v1.13.9"
+      curl -fsSLo "$tofu_archive" "$tofu_url/$tofu_archive"
+      curl -fsSL "$tofu_url/tofu_1.13.9_SHA256SUMS" | awk -v file="$tofu_archive" '$2 == file { print }' | sha256sum -c -
+      unzip -p "$tofu_archive" tofu > tofu
+      sudo install -m 755 tofu /usr/local/bin/tofu
+      tofu --version
+
+  - id: install-k3d
+    name: Install k3d
+    command: |
+      set -eu
+      if command -v k3d >/dev/null 2>&1 && k3d version | grep -Fxq 'k3d version v5.8.3'; then
+        printf 'k3d v5.8.3 already installed\n'
+        exit 0
+      fi
+      case "$(uname -m)" in
+        x86_64) arch=amd64 ;;
+        aarch64) arch=arm64 ;;
+        *) printf 'Unsupported architecture: %s\n' "$(uname -m)" >&2; exit 1 ;;
+      esac
+      work_dir=$(mktemp -d)
+      trap 'rm -rf "$work_dir"' EXIT
+      cd "$work_dir"
+      k3d_url="https://github.com/k3d-io/k3d/releases/download/v5.8.3"
+      curl -fsSLo k3d "$k3d_url/k3d-linux-$arch"
+      curl -fsSL "$k3d_url/checksums.txt" | awk -v file="_dist/k3d-linux-$arch" '$2 == file { print $1 "  k3d" }' | sha256sum -c -
+      sudo install -m 755 k3d /usr/local/bin/k3d
+      k3d version
+
+  - id: verify-docker
+    name: Verify Docker availability
+    command: |
+      if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+        printf 'Docker daemon is available\n'
+      else
+        printf 'Warning: Docker daemon is unavailable; local cluster tests cannot run\n' >&2
+      fi
 
   - id: install-flux
     name: Install flux
@@ -79,10 +197,6 @@ inventory:
       command -v markdownlint-cli2
       command -v prettier
       command -v remote-astro-theme
-
-  - id: apt-update
-    name: Update Apt
-    command: sudo apt-get update
 
   - id: "fix-markdown"
     name: "Fix all fixable markdown issues"
@@ -115,8 +229,12 @@ waves:
       - gh-auth
       - install-gh-insitu
       - repo-gitconfig
-      - install-npm-tools
-      - install-apt-tools
+      - runner-install-npm-tools
+      - install-helm
+      - install-kubectl
+      - install-tofu
+      - install-k3d
+      - verify-docker
 
   - id: trunk-worthy
     name: Minimum quality checks before commit
