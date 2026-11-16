@@ -1,3 +1,4 @@
 tmp/**
 astro/dist/**
 astro/.astro/**
+src/helm/remark42/templates/**

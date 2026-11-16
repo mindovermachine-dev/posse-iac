@@ -29,7 +29,11 @@ Start with one cluster, one node, and Remark42. Add workloads as their requireme
 - **OpenTofu:** Provision approved Hetzner resources, firewall rules, and server access. Keep state protected and out of version control.
 - **K3s:** Provide the single-node workload platform. Keep its API private to operators and patch the host and cluster regularly.
 - **Ingress:** Terminate HTTPS and route configured hostnames to services. Trust forwarded client headers only from the known proxy path.
-- **Applications:** Deploy independently, initially using a pinned Helm chart and image for Remark42. Keep application source in its own repository or fork.
+- **Applications:** Deploy independently, initially using the project-owned
+  `src/helm/remark42` chart and pinned Remark42 image. The chart and its local
+  K3s checks do not provision or deploy the proposed Hetzner platform. The
+  offline chart checks pass; local integration is currently blocked by
+  unreachable K3s service networking in the Docker environment.
 - **Data:** Use storage with filesystem and locking behavior supported by the application, and configure each workload for its supported writer model.
 
 ## Networking and placement

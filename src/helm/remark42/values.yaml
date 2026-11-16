@@ -1,0 +1,475 @@
+## Default values for Remark42 deployment
+
+## Remark42 image
+image:
+  repository: "ghcr.io/umputun/remark42"
+  digest: "sha256:00a803ffdde34e8f239eef3e46adbeac44b9ef1a2f366e8b86b413d6908f3ac3"
+  pullPolicy: IfNotPresent
+
+## Init container command
+initCommand:
+  - /bin/sh
+
+## Init container command args
+initArgs:
+  - -c
+  - find /srvtmp -maxdepth 1 -type f -delete && rm -rf /srvtmp/web && cp -R /srv/* /srvtmp && mkdir -p /srvtmp/var
+
+## Pull secrets and name override options
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+## Additional labels for Deployment or StatefulSet
+customLabels: {}
+
+## Additional annotations for Deployment or StatefulSet
+customAnnotations: {}
+
+## Pod deployment strategy
+strategy:
+  type: Recreate
+
+## Optional service account
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: false
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+## Additional pod annotations
+podAnnotations: {}
+
+## Additional pod labels
+podLabels: {}
+
+## Pod security options (Run as app)
+podSecurityContext:
+  fsGroup: 1001
+  runAsUser: 1001
+  runAsNonRoot: true
+
+## Default security options to run Remark42 as non-root, read-only container without privilege escalation
+securityContext:
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  privileged: false
+
+## Default service port
+service:
+  type: ClusterIP
+  port: 80
+  ## The node port (only relevant for type LoadBalancer or NodePort)
+  nodePort:
+  ## The cluster ip address (only relevant for type LoadBalancer or NodePort)
+  clusterIP:
+  ## The load balancer IP address (only relevant for type LoadBalancer)
+  loadBalancerIP:
+  ## The list of IP CIDR ranges allowed to access the load balancer (only relevant for type LoadBalancer)
+  loadBalancerSourceRanges: []
+  ## Annotations to add to the service
+  annotations: {}
+  ## Labels to add to the service
+  labels: {}
+
+ingress:
+  enabled: true
+  ## Optional ingress class name
+  className: traefik
+
+  ## Additional ingress annotations
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+
+  ## Additional ingress labels
+  labels: {}
+
+  ## Hosts
+  hosts: []
+
+  tls: []
+
+## HTTPRoute configuration for Gateway API
+httpRoute:
+  enabled: false
+
+  ## Additional HTTPRoute annotations
+  annotations: {}
+
+  ## Additional HTTPRoute labels
+  labels: {}
+
+  ## Gateway parent references (required when httpRoute.enabled is true and listenerSet.enabled is false)
+  parentRefs: []
+    # - name: gateway
+    #   namespace: default
+    #   sectionName: https
+
+  ## Hostnames for the HTTPRoute
+  hostnames: []
+    # - remark42.example.local
+
+  ## Rules for routing traffic to the Remark42 service
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      filters: []
+      timeouts: {}
+
+## ListenerSet configuration for Gateway API
+listenerSet:
+  enabled: false
+
+  ## Additional ListenerSet annotations
+  annotations: {}
+
+  ## Additional ListenerSet labels
+  labels: {}
+
+  ## Gateway parent reference (required when listenerSet.enabled is true)
+  parentRef: {}
+    # name: gateway
+    # namespace: default
+
+  ## Listeners to attach to the parent Gateway
+  listeners: []
+    # - name: https
+    #   port: 443
+    #   protocol: HTTPS
+    #   hostname: remark42.example.local
+    #   allowedRoutes:
+    #     namespaces:
+    #       from: Same
+    #   tls:
+    #     mode: Terminate
+    #     certificateRefs:
+    #       - kind: Secret
+    #         name: remark42-https-cert
+
+## Resource limits and requests
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+
+## Pod priority class name
+priorityClassName: ""
+
+## Default node type for the image
+nodeSelector: {}
+
+## Tolerations for pod assignment
+tolerations: []
+
+## Affinity for pod assignment
+affinity: {}
+
+## Topology spread constraints for pods
+topologySpreadConstraints: {}
+
+## Maximum number of revisions maintained in revision history
+revisionHistoryLimit:
+
+containerPort: 8080
+
+## Custom startup probe (overwrites default startup probe)
+customStartupProbe: {}
+
+## Default startup check
+startupProbe:
+  enabled: true
+  initialDelaySeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 30
+  successThreshold: 1
+  periodSeconds: 10
+
+## Custom liveness probe (overwrites default liveness probe)
+customLivenessProbe: {}
+
+## Default liveness probe
+livenessProbe:
+  enabled: true
+  initialDelaySeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 6
+  successThreshold: 1
+  periodSeconds: 10
+
+## Custom readiness probe (overwrites default readiness probe)
+customReadinessProbe: {}
+
+## Default readiness probe
+readinessProbe:
+  enabled: true
+  initialDelaySeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 5
+  successThreshold: 1
+  periodSeconds: 10
+
+## Additional environment variables
+env: []
+
+settings:
+  ## URL to this Remark42 site
+  url:
+
+  ## Site Id
+  site: ""
+
+  ## Time zone (f.e. Europe/Berlin)
+  timeZone: "GTC"
+
+  ## Maximum number of nightly backup files to keep
+  maxBackupFiles: 10
+
+  ## Comment size limit
+  maxCommentSize: 2048
+
+  ## Vote limits per comment (-1 for unlimited)
+  maxVotes: -1
+
+  ## Restrict votes from same IP address
+  votesIp: false
+
+  ## Allow votes from anonymous users
+  anonymousVote: false
+
+  ## Restriction time for votes from same IP address
+  votesIpTime: "5m"
+
+  ## Low score threshold
+  lowScoreThreshold: -5
+  ## Critical score threshold
+  criticalScoreThresold: -10
+  ## Restrict comments score to be only positive
+  positiveScore: false
+
+  ## Words banned in comments
+  restrictedWords:
+  ## Names prohibited to use by a user
+  restrictedNames:
+
+  ## Edit time window
+  editTime: "5m"
+
+  # Read-only age of comments in days
+  readonlyAge:
+
+  ## Enable HTTP to HTTPS proxy for images
+  imageProxyHttp2Https: false
+  ## Enable caching of external images
+  proxyExternalCache: false
+  ## Enable emoji support
+  emoji: false
+  ## Minimized UI with basic information
+  simpleView: false
+  ## Disable internal CORS and delegate it to proxy
+  proxyCors: false
+  ## Limit hosts allowed to embed comments
+  allowedHosts:
+  ## Updates/sec limit
+  updateLimit: "0.5"
+
+  ## SMTP configuration
+  smtp:
+    ## Enable SMTP (default: false)
+    enabled: false
+
+    ## SMTP host
+    host:
+
+    ## SMTP port (default: 25, should be 465 for tls and 587 for starttls)
+    port: 25
+
+    ## Enable SMTP TLS
+    tls: false
+
+    ## Enable SMTP StartTLS
+    starttls: false
+
+    ## SMTP timeout
+    timeout: "10s"
+
+  admin:
+    ## Admin Email addresses
+    sharedEmail: ""
+
+  cache:
+    ## Maximum number of cached items
+    maxItems: 1000
+    ## Maximum size of cached value
+    maxValue: 65536
+    ## Maximum size of all caches values
+    maxSize: "50000000"
+
+  avatar:
+    ## Avatar storage type (fs, bolt, uri)
+    type: "fs"
+    ## Maximum image size for resizing avatars
+    resizeLimit: 0
+
+  image:
+    ## Image storage type (fs, bolt, uri)
+    type: "fs"
+    ## Maximum image size
+    maxSize: "5000000"
+    ## Number of image partitions
+    partitions: 100
+    ## Image resizing
+    resize:
+      ## Width of resized image
+      width: 2400
+      ## Height of resized image
+      height: 900
+
+  auth:
+    ttl:
+      ## JWT TTL
+      jwt: "5m"
+      ## Cookie TTL
+      cookie: "200h"
+    ## Send JWT as header instead of cookie
+    sentJwtHeader: false
+    ## Set same site policy for cookies (default, none, lax, strict)
+    sameSite: "default"
+    ## Enable anonymous login
+    anonymous: false
+    email:
+      ## Enable authentication via email
+      enable: false
+      ## Email from
+      from:
+      ## Email subject
+      subject: "remark42 confirmation"
+      ## Email content type
+      contentType: "text/html"
+      ## Custom email message template file
+      template:
+
+  notify:
+    ## Notification type configuration
+    type:
+      ## User notification type (none, telegram, slack, email)
+      user: "none"
+      ## Admin notification type (none, telegram, slack, email, webhook)
+      admin: "none"
+    ## Size of notification queue
+    queue: 100
+    telegram:
+      ## Telegram channel
+      channel:
+      ## Telegram timeout
+      timeout: "5s"
+    slack:
+      ## Slack channel
+      channel: "general"
+    email:
+      ## Email from address
+      fromAddress:
+      ## Verification message subject
+      verificationSubject: "Email verification"
+      ## Notify admin on new comments via admin.sharedEmail (deprecated option - use settings.notify.type.admin: "email" instead)
+      ## This setting will overwrite settings.notify.type.admin with "email" when set to true
+      emailAdmin: false
+    webhook:
+      ## Webhook notification URL for admin notifications
+      url:
+      ## Webhook payload template
+      template: '{"text": ""}'
+      ## HTTP header in format Header1:Value1,Header2:Value2,...
+      headers:
+      ## Webhook request timeout
+      timeout: "5s"
+
+  ## Support for OAuth authentication with different providers
+  oauth:
+    ## Google OAuth
+    google:
+      enabled: false
+
+    ## Github OAuth
+    github:
+      enabled: false
+
+    ## Facebook OAuth
+    facebook:
+      enabled: false
+
+    # Twitter OAuth
+    twitter:
+      enabled: false
+
+    # Microsoft OAuth
+    microsoft:
+      enabled: false
+
+    # Yandex OAuth
+    yandex:
+      enabled: false
+
+# Optional credentials are read from this pre-existing Secret. Each entry maps
+# an application environment variable to a key in the Secret.
+secret:
+  name: ""
+  key: SECRET
+  env: []
+  # Example:
+  # env:
+  #   - name: ADMIN_PASSWD
+  #     key: ADMIN_PASSWD
+
+# Storage parameters
+storage:
+  ## Set persistentVolumenClaimName to reference an existing PVC
+  persistentVolumeClaimName:
+
+  ## Alternatively set requestedSize to define a size for a dynamically created PVC
+  requestedSize:
+
+  ## the storage class name
+  className:
+
+  ## Default access mode (ReadWriteOnce)
+  accessModes:
+    - ReadWriteOnce
+
+  ## Keep a created Persistent volume claim when uninstalling the helm chart
+  keepPvc: true
+
+  ## Additional storage annotations
+  annotations: {}
+
+  ## Additional storage labels
+  labels: {}
+
+extraResources: []
+  # - |
+  #   apiVersion: projectcontour.io/v1
+  #   kind: HTTPProxy
+  #   metadata:
+  #     name: {{ include "remark42.fullname" . }}
+  #     namespace: {{ .Values.namespace | default .Release.Namespace }}
+  #     labels:
+  #       {{- include "remark42.labels" . | nindent 4 }}
+  #   spec:
+  #     ingressClassName: contour
+  #     virtualhost:
+  #       fqdn: {{.Values.settings.url | trimPrefix "http://"}}
+  #     routes:
+  #     - services:
+  #       - name: {{ include "remark42.fullname" . }}
+  #         port: {{ .Values.service.port }}
+
+## Network policies
+networkPolicy: {}
+  ## Ingress and Egress policies
+  # ingress: {}
+  # egress: {}
