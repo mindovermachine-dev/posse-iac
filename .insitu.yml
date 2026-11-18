@@ -221,6 +221,7 @@ waves:
       - safe-repo
       - repo-gitconfig
       - install-apt-tools
+      - install-k3d
 
   - id: "prep-runner"
     name: "Run to prepare GitHub runner"

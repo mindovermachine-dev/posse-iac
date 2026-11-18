@@ -1,0 +1,51 @@
+{{- if .Values.ingress.enabled }}
+{{- $fullName := include "remark42.fullname" . -}}
+{{- $labels := include "remark42.labels" . -}}
+{{- $svcPort := .Values.service.port -}}
+{{- if empty .Values.ingress.hosts }}{{ fail ".ingress.hosts must contain a hostname" }}{{ end -}}
+{{- if empty .Values.ingress.tls }}{{ fail ".ingress.tls must reference a pre-existing TLS Secret" }}{{ end -}}
+{{- with .Values.ingress }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $fullName }}
+  labels:
+    {{- $labels | nindent 4 }}
+  {{- with .labels }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  annotations:
+  {{- with .annotations }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .className }}
+  ingressClassName: {{ .className }}
+  {{- end }}
+  {{- if .tls }}
+  tls:
+    {{- range .tls }}
+    - hosts:
+        {{- range .hosts }}
+        - {{ . | quote }}
+        {{- end }}
+      secretName: {{ required ".ingress.tls[].secretName is required" .secretName }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- range .hosts }}
+    - host: {{ required ".ingress.hosts[].host is required" .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: {{ $fullName }}
+                port:
+                  number: {{ $svcPort }}
+          {{- end }}
+    {{- end }}
+{{- end }}
+{{- end }}

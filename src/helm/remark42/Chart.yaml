@@ -1,0 +1,12 @@
+apiVersion: v2
+name: remark42
+description: Independently maintained Remark42 comment system chart
+
+type: application
+
+maintainers:
+  - name: mindovermachine-dev
+
+version: "0.1.0"
+
+appVersion: "v1.18.0"

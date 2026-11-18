@@ -1,0 +1,35 @@
+image:
+  repository: ghcr.io/umputun/remark42
+  digest: sha256:00a803ffdde34e8f239eef3e46adbeac44b9ef1a2f366e8b86b413d6908f3ac3
+
+settings:
+  url: https://remark42.test
+  site: test
+  auth:
+    anonymous: false
+
+secret:
+  name: remark42-auth
+  key: SECRET
+  env:
+    - name: ADMIN_PASSWD
+      key: ADMIN_PASSWD
+
+storage:
+  requestedSize: 1Gi
+  keepPvc: true
+
+ingress:
+  enabled: true
+  className: traefik
+  hosts:
+    - host: remark42.test
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - hosts:
+        - remark42.test
+      secretName: remark42-tls
+
+testOnlySyntheticCredential: "RENDER-TEST-SYNTHETIC-NOT-A-SECRET"
