@@ -174,13 +174,25 @@ done
 helm upgrade --install remark42 "$chart_dir" \
   --namespace "$namespace" --values "$work_dir/values.yaml"
 kubectl -n "$namespace" rollout status deployment/remark42 --timeout=300s
-kubectl -n "$namespace" wait --for=condition=Bound pvc/remark42 --timeout=180s
+kubectl -n "$namespace" wait --for=jsonpath='{.status.phase}'=Bound pvc/remark42 --timeout=180s
 
 curl_local() {
   curl --silent --show-error --fail \
     --resolve "${host}:${https_port}:127.0.0.1" \
     --cacert "$work_dir/ca.crt" \
     --connect-timeout 5 --max-time 30 "$@"
+}
+
+retry_curl_local() {
+  local attempt
+  for attempt in $(seq 1 30); do
+    if curl_local "$@" 2>"$work_dir/curl-retry.err"; then
+      return 0
+    fi
+    sleep 1
+  done
+  cat "$work_dir/curl-retry.err" >&2
+  return 1
 }
 
 ready=0
@@ -220,12 +232,12 @@ curl_local --config "$work_dir/basic-auth.conf" \
   "https://${host}:${https_port}/api/v1/picture?site=${site}" >"$work_dir/picture.json"
 picture_id="$(jq -er '.id' "$work_dir/picture.json")"
 curl_local -o "$work_dir/picture-before.png" \
-  "https://${host}:${https_port}/picture/${picture_id}"
+  "https://${host}:${https_port}/api/v1/picture/${picture_id}"
 test -s "$work_dir/picture-before.png"
 
 comment="persist-${suffix}"
 page="https://example.invalid/remark42-${suffix}"
-media_url="https://${host}:${https_port}/picture/${picture_id}"
+media_url="https://${host}:${https_port}/api/v1/picture/${picture_id}"
 printf '{"text":"%s ![local media](%s)","locator":{"url":"%s","site":"%s"}}' \
   "$comment" "$media_url" "$page" "$site" >"$work_dir/comment.json"
 curl_local --config "$work_dir/basic-auth.conf" \
@@ -272,10 +284,17 @@ printf 'Runtime image: %s\nRuntime image ID: %s\nRuntime node architecture: %s\n
 kubectl -n "$namespace" rollout restart deployment/remark42 >/dev/null
 kubectl -n "$namespace" rollout status deployment/remark42 --timeout=300s
 assert_single_ready_pod
-find_comment >"$work_dir/find-after-pod-restart.json"
+retry_curl_local --get \
+  --data-urlencode "site=${site}" \
+  --data-urlencode "url=${page}" \
+  "https://${host}:${https_port}/api/v1/find" >"$work_dir/find-after-pod-restart.json"
 jq -e --arg comment "$comment" 'tostring | contains($comment)' "$work_dir/find-after-pod-restart.json" >/dev/null
-curl_local -o "$work_dir/picture-after-pod-restart.png" \
-  "https://${host}:${https_port}/picture/${picture_id}"
+if ! retry_curl_local -o "$work_dir/picture-after-pod-restart.png" \
+  "https://${host}:${https_port}/api/v1/picture/${picture_id}"; then
+  printf 'Picture %s was unavailable after pod restart; files under /srv/var:\n' "$picture_id" >&2
+  kubectl -n "$namespace" exec deployment/remark42 -- find /srv/var -maxdepth 5 -type f -print >&2 || true
+  exit 1
+fi
 cmp "$work_dir/picture-before.png" "$work_dir/picture-after-pod-restart.png"
 
 cat >"$work_dir/watch-pods.sh" <<'WATCH'
@@ -318,10 +337,13 @@ if [[ -e "$work_dir/overlapping-pods" ]]; then
   exit 1
 fi
 assert_single_ready_pod
-find_comment >"$work_dir/find-after-upgrade.json"
+retry_curl_local --get \
+  --data-urlencode "site=${site}" \
+  --data-urlencode "url=${page}" \
+  "https://${host}:${https_port}/api/v1/find" >"$work_dir/find-after-upgrade.json"
 jq -e --arg comment "$comment" 'tostring | contains($comment)' "$work_dir/find-after-upgrade.json" >/dev/null
-curl_local -o "$work_dir/picture-after-upgrade.png" \
-  "https://${host}:${https_port}/picture/${picture_id}"
+retry_curl_local -o "$work_dir/picture-after-upgrade.png" \
+  "https://${host}:${https_port}/api/v1/picture/${picture_id}"
 cmp "$work_dir/picture-before.png" "$work_dir/picture-after-upgrade.png"
 printf 'PASS: comment and media persisted after pod restart and Recreate Helm upgrade with no overlapping pods\n'
 
@@ -334,10 +356,13 @@ docker restart "$node_container" >/dev/null
 kubectl wait --for=condition=Ready node --all --timeout=240s >/dev/null
 kubectl -n "$namespace" rollout status deployment/remark42 --timeout=300s
 assert_single_ready_pod
-find_comment >"$work_dir/find-after-node-restart.json"
+retry_curl_local --get \
+  --data-urlencode "site=${site}" \
+  --data-urlencode "url=${page}" \
+  "https://${host}:${https_port}/api/v1/find" >"$work_dir/find-after-node-restart.json"
 jq -e --arg comment "$comment" 'tostring | contains($comment)' "$work_dir/find-after-node-restart.json" >/dev/null
-curl_local -o "$work_dir/picture-after-node-restart.png" \
-  "https://${host}:${https_port}/picture/${picture_id}"
+retry_curl_local -o "$work_dir/picture-after-node-restart.png" \
+  "https://${host}:${https_port}/api/v1/picture/${picture_id}"
 cmp "$work_dir/picture-before.png" "$work_dir/picture-after-node-restart.png"
 printf 'PASS: comment and media persisted after restart of the disposable K3s node\n'
 

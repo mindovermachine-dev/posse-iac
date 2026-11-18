@@ -10,6 +10,10 @@ K3s, ingress, Remark42, persistent application volumes, and backups are later
 steps. Treat the host and its data as a proof of concept until persistence,
 security, and recovery have been designed and tested.
 
+For the staged operator procedure from infrastructure preflight through the
+local-to-live boundary, see the
+[Hetzner Remark42 PoC runbook](../../docs/content/delivery/implementation/).
+
 ## Before planning
 
 Gather the following:

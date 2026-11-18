@@ -89,3 +89,7 @@ Run the offline assertions with
 [`tests/render-test.sh`](tests/render-test.sh). The disposable local integration
 workflow and its prerequisites, commands, results, and limitations are
 documented in [`tests/README.md`](tests/README.md).
+
+For the operator-led Hetzner PoC sequence and the infrastructure steps this
+chart does not automate, see the
+[deployment runbook](../../../docs/content/delivery/implementation/).

@@ -46,31 +46,23 @@ deletes the uniquely named cluster after successful creation.
 The cluster uses K3s's bundled Traefik and local-path provisioner. On a
 successful run, the script validates HTTPS with `curl --resolve` and the
 generated CA, the widget endpoint and assets, pod image and node architecture,
-storage after a pod restart and node restart, and single-pod `Recreate` rollout behavior. It keeps
-`AUTH_ANON=false`, maps a generated administrator password from the temporary
-Kubernetes Secret, and uses synthetic content only. This local configuration
-is not suitable for deployment.
+storage after a pod restart and node restart, and single-pod `Recreate` rollout
+behavior. It keeps `AUTH_ANON=false`, maps a generated administrator password
+from the temporary Kubernetes Secret, and uses synthetic content only. This
+local configuration is not suitable for deployment. After pod, Helm, and node
+restarts, API checks retry transient ingress 404 responses for up to 30 seconds
+while Traefik refreshes its service endpoints.
 
 ## Observed results
 
 - `src/helm/remark42/tests/render-test.sh` passed with Helm 4.3.1.
-- Docker Engine 28.0.4 reported host architecture `x86_64`. Inspecting the
-  pinned image index confirmed Linux `amd64` and `arm64` manifests. The
-  integration test did not start a Remark42 pod, so runtime image ID and
-  container architecture remain unverified.
-- `src/helm/remark42/tests/integration-test.sh` was attempted with k3d 5.8.3
-  and K3s `v1.31.5-k3s1`. k3d created its unique cluster and the test observed
-  the node as Ready, but K3s did not install the Traefik IngressClass within
-  120 seconds. The Helm installer logs reported
-  `Kubernetes cluster unreachable: Get "https://10.43.0.1:443/version": dial tcp 10.43.0.1:443: i/o timeout`.
-  The K3s API service ClusterIP was unreachable from the in-cluster Traefik
-  installer pods. The script reported the failure and removed its cluster and
-  temporary credentials.
-- Consequently, the app install, ingress and CA validation, widget requests,
-  comment creation/read, media persistence, moderator action, pod restart,
-  Helm upgrade/single-writer observation, and node restart were not run.
+- `src/helm/remark42/tests/integration-test.sh` passed with k3d 5.8.3 and K3s
+  `v1.31.5-k3s1` on the local ARM64 Docker daemon. It verified loopback-only
+  HTTPS and the generated CA, loaded the widget asset, created and read a
+  synthetic comment, uploaded and served media, and confirmed the pinned image
+  ran as ARM64. The comment and media survived pod restart, a `Recreate` Helm
+  upgrade with no overlapping pods, and a K3s node restart. Moderator deletion
+  succeeded, and the script removed its test cluster and temporary credentials.
 
-The integration command above can be rerun when pod-to-service networking
-works in the Docker environment. Neither the offline chart checks nor the
-incomplete local cluster test verify Hetzner networking, public DNS,
-certificate issuance, backups, or production recovery.
+Neither the offline chart checks nor the local integration test verify Hetzner
+networking, public DNS, certificate issuance, backups, or production recovery.

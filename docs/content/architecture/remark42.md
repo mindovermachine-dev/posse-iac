@@ -19,11 +19,13 @@ releases and security fixes independently.
 The chart uses Remark42 `v1.18.0`, pinned to the supplied multi-platform
 `ghcr.io/umputun/remark42` image-index digest. The image index supports Linux
 AMD64 and ARM64; the chart deliberately has no mandatory architecture selector.
-The chart provenance, license, tests, and current local-test instructions are
-recorded alongside the chart. The offline render test passes. The current
-Docker-host K3s integration attempt is blocked because in-cluster requests to
-the Kubernetes service IP time out; no Remark42 pod or application flow was
-tested.
+The chart provenance, license, tests, and local-test instructions are recorded
+alongside the chart. The offline render test and disposable local K3s
+integration test pass on the current ARM64 Docker environment. The integration
+test verifies TLS with a generated local CA, widget assets, synthetic comment
+and media operations, persistence across pod/node restarts and an upgrade, and
+moderation. It does not verify Hetzner networking, public DNS, or public
+certificate issuance; see the [test report](../../../src/helm/remark42/tests/README.md).
 
 The chart is chart-specific application configuration, separate from cluster
 bootstrap. It deploys one replica with a `Recreate` strategy, a ClusterIP
@@ -55,6 +57,10 @@ single-writer requirement and the availability characteristics of the chosen
 host and storage. Validate the ingress forwarding path and configure trusted
 proxies before relying on IP-based protections; the local chart test does not
 establish that live proxy-header trust.
+
+For the staged Hetzner PoC procedure, including the current OpenTofu, K3s,
+certificate, and Helm ownership boundaries, see
+[Implementation and operations](../delivery/implementation/).
 
 ## Backups and user data
 
